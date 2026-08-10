@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام تجميع وتحضير الطلبات الذكي | Pick List Engine</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- SheetJS (Excel Parsing & Export) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- PDF.js (PDF Text Extraction) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    
+    <!-- jsPDF & AutoTable (PDF Report Generation) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Google Fonts: Cairo for Arabic, Inter for English Products -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f1f5f9;
+        }
+
+        .product-name {
+            font-family: 'Inter', sans-serif;
+            direction: ltr;
+        }
+
+        .drop-zone {
+            transition: all 0.3s ease;
+        }
+        
+        .drop-zone.active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+            transform: scale(1.02);
+        }
+
+        .loader {
+            border-top-color: #3b82f6;
+            -webkit-animation: spinner 1s linear infinite;
+            animation: spinner 1s linear infinite;
+        }
+        
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Custom scrollbar for table */
+        .table-container::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <div class="max-w-7xl mx-auto px-4 py-8 w-full flex-grow flex flex-col gap-6">
+        
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    نظام تجميع وتحضير الطلبات
+                </h1>
+                <p class="text-sm text-slate-500 mt-2">قم برفع شيت الإكسيل أولاً، ثم بوالص الـ PDF لفلترة المنتجات واستخراج قوائم التحضير.</p>
+            </div>
+            <button onclick="app.resetSession()" class="mt-4 md:mt-0 flex items-center gap-2 px-5 py-2.5 bg-rose-50 text-rose-600 font-semibold rounded-xl hover:bg-rose-100 transition-colors border border-rose-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                تفريغ البيانات والبدء من جديد
+            </button>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500 font-medium">إجمالي الأوردرات المعالجة</p>
+                    <p id="stat-orders" class="text-2xl font-bold text-slate-800">0</p>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                <div class="p-3 bg-fuchsia-50 text-fuchsia-600 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500 font-medium">أنواع المنتجات (SKUs)</p>
+                    <p id="stat-skus" class="text-2xl font-bold text-slate-800">0</p>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500 font-medium">إجمالي القطع المطلوبة</p>
+                    <p id="stat-pieces" class="text-2xl font-bold text-slate-800">0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- System 1: Big Bulk (Excel) -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-2 h-full bg-blue-500"></div>
+                <h2 class="text-xl font-bold mb-2 flex items-center gap-2 text-slate-800">
+                    <span class="bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-lg text-sm font-bold">النظام الأول</span>
+                    التحضير الشامل (Big Bulk)
+                </h2>
+                <p class="text-sm text-slate-500 mb-4">ارفع شيت الإكسيل لاستخراج إجمالي بضاعة اليوم كاملة.</p>
+                
+                <div id="excel-drop-zone" class="drop-zone flex-grow border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 flex flex-col items-center justify-center p-8 cursor-pointer hover:bg-slate-100 min-h-[200px]">
+                    <input type="file" id="excel-input" class="hidden" accept=".xlsx, .xls, .csv">
+                    <svg class="w-14 h-14 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <p class="text-base font-bold text-slate-700 text-center">اسحب وأفلت شيت الإكسيل هنا</p>
+                    <p class="text-sm text-slate-500 mt-1">أو اضغط لاختيار الملف</p>
+                </div>
+                
+                <div id="excel-status" class="mt-4 hidden p-3 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-sm font-semibold flex items-center gap-2">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <span id="excel-status-text">تم تحميل الأوردرات بنجاح.</span>
+                </div>
+
+                <!-- Big Bulk Export Buttons -->
+                <div class="mt-4 pt-4 border-t border-slate-100 flex gap-3">
+                    <button onclick="app.exportData('big-bulk', 'excel')" id="btn-bb-excel" disabled class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
+                        تصدير Excel
+                    </button>
+                    <button onclick="app.exportData('big-bulk', 'pdf')" id="btn-bb-pdf" disabled class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
+                        تصدير PDF 
+                    </button>
+                </div>
+            </div>
+
+            <!-- System 2: Per Bulk (PDF) -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-2 h-full bg-amber-500 z-0"></div>
+                
+                <!-- Overlay lock -->
+                <div id="pdf-overlay" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl transition-opacity">
+                    <div class="bg-white p-4 rounded-full shadow-sm mb-3">
+                        <svg class="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </div>
+                    <p class="text-base font-bold text-slate-700">يجب رفع شيت الإكسيل أولاً</p>
+                    <p class="text-sm text-slate-500 mt-1">لفتح نظام التحضير المخصص</p>
+                </div>
+
+                <div class="flex justify-between items-start mb-2 relative z-0">
+                    <h2 class="text-xl font-bold flex items-center gap-2 text-slate-800">
+                        <span class="bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-lg text-sm font-bold">النظام الثاني</span>
+                        التحضير المخصص (Per-Bulk)
+                    </h2>
+                    <button onclick="app.resetPDFs()" id="btn-reset-pdf" title="مسح بوالص الـ PDF المرفوعة والعودة للنظام الشامل" class="hidden text-sm font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-rose-100">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        مسح البوالص
+                    </button>
+                </div>
+                <p class="text-sm text-slate-500 mb-4 relative z-0">ارفع بوالص الشحن لعمل <b>فلترة صارمة</b> واستخراج منتجاتها فقط.</p>
+                
+                <div id="pdf-drop-zone" class="drop-zone flex-grow border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 flex flex-col items-center justify-center p-8 cursor-pointer hover:bg-slate-100 min-h-[200px] relative z-0">
+                    <input type="file" id="pdf-input" class="hidden" accept="application/pdf" multiple>
+                    <svg class="w-14 h-14 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    <p class="text-base font-bold text-slate-700 text-center">اسحب وأفلت بوالص الـ PDF</p>
+                    <p class="text-sm text-slate-500 mt-1">يمكنك تحديد عدة ملفات معاً</p>
+                </div>
+
+                <div id="pdf-status" class="mt-4 hidden p-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm font-semibold flex items-center gap-2 relative z-0">
+                    <div id="pdf-spinner" class="loader border-2 border-amber-200 border-t-amber-700 rounded-full w-5 h-5 hidden"></div>
+                    <svg id="pdf-check" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span id="pdf-status-text">جاهز للمعالجة...</span>
+                </div>
+
+                <!-- Per Bulk Export Buttons -->
+                <div class="mt-4 pt-4 border-t border-slate-100 flex gap-3 relative z-0">
+                    <button onclick="app.exportData('per-bulk', 'excel')" id="btn-pb-excel" disabled class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
+                        تصدير Excel (مفلتر)
+                    </button>
+                    <button onclick="app.exportData('per-bulk', 'pdf')" id="btn-pb-pdf" disabled class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
+                        تصدير PDF (مفلتر)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col flex-grow overflow-hidden mb-8">
+            <div class="p-4 border-b border-slate-200 bg-slate-50 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">معاينة البيانات المجمعة</h3>
+                    <p id="table-view-mode" class="text-sm text-blue-600 font-semibold mt-1">الوضع الحالي: التحضير الشامل (Big Bulk)</p>
+                </div>
+                <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                    <!-- Search Input -->
+                    <div class="relative w-full sm:w-72 shrink-0">
+                        <input type="text" id="search-input" placeholder="بحث عن منتج (مثال: Without box)..." class="w-full pr-10 pl-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 bg-white shadow-sm">
+                        <svg class="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                    <!-- Sort Dropdown -->
+                    <div class="relative shrink-0 w-full sm:w-auto">
+                        <select id="sort-select" class="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 bg-white shadow-sm appearance-none cursor-pointer font-semibold">
+                            <option value="alpha">🔤 ترتيب أبجدي (A - Z)</option>
+                            <option value="qty-desc">⬇️ الأعلى كمية أولاً</option>
+                            <option value="qty-asc">⬆️ الأقل كمية أولاً</option>
+                        </select>
+                        <svg class="w-5 h-5 text-blue-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
+                    </div>
+                    <!-- Tabs -->
+                    <div class="flex gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-full sm:w-auto justify-center">
+                        <button onclick="app.switchView('big-bulk')" id="tab-bb" class="px-4 py-1.5 text-sm font-bold rounded-md bg-blue-50 text-blue-700 transition-colors">عرض الكل</button>
+                        <button onclick="app.switchView('per-bulk')" id="tab-pb" disabled class="px-4 py-1.5 text-sm font-bold rounded-md text-slate-500 hover:text-slate-700 disabled:opacity-50 transition-colors">عرض المفلتر فقط</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container overflow-auto relative bg-white max-h-[600px]">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th scope="col" class="px-6 py-4 text-center text-sm font-bold text-slate-600 uppercase tracking-wider w-20 border-l border-slate-200">#</th>
+                            <th scope="col" class="px-6 py-4 text-right text-sm font-bold text-slate-600 uppercase tracking-wider border-l border-slate-200">
+                                اسم المنتج / Product Name <br><span class="text-xs font-normal text-slate-500">(محاذاة لليسار)</span>
+                            </th>
+                            <th scope="col" class="px-6 py-4 text-center text-sm font-bold text-slate-900 uppercase tracking-wider w-48 bg-slate-200">العدد المطلوب<br>Total Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="bg-white divide-y divide-slate-200">
+                        <tr>
+                            <td colspan="3" class="px-6 py-16 text-center text-slate-400">
+                                <svg class="mx-auto h-14 w-14 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                                <p class="text-lg font-semibold text-slate-600">لا توجد بيانات للعرض حالياً</p>
+                                <p class="text-sm mt-1">يرجى رفع ملف إكسيل للبدء.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // إعداد مشغل PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        // --- حالة التطبيق الأساسية ---
+        const state = {
+            excelData: [],         // البيانات الأصلية من الإكسيل { orderId, items: [{name, qty}] }
+            extractedOrderIds: new Set(), // أرقام الأوردرات المستخرجة من الـ PDFs
+            activeView: 'big-bulk', // 'big-bulk' أو 'per-bulk'
+            pdfLoaded: false,
+            sortMode: 'alpha'       // طريقة الترتيب الافتراضية
+        };
+
+        // --- عناصر الواجهة ---
+        const ui = {
+            excelZone: document.getElementById('excel-drop-zone'),
+            excelInput: document.getElementById('excel-input'),
+            excelStatus: document.getElementById('excel-status'),
+            excelStatusText: document.getElementById('excel-status-text'),
+            btnBbExcel: document.getElementById('btn-bb-excel'),
+            btnBbPdf: document.getElementById('btn-bb-pdf'),
+            
+            pdfOverlay: document.getElementById('pdf-overlay'),
+            pdfZone: document.getElementById('pdf-drop-zone'),
+            pdfInput: document.getElementById('pdf-input'),
+            pdfStatus: document.getElementById('pdf-status'),
+            pdfStatusText: document.getElementById('pdf-status-text'),
+            pdfSpinner: document.getElementById('pdf-spinner'),
+            pdfCheck: document.getElementById('pdf-check'),
+            btnPbExcel: document.getElementById('btn-pb-excel'),
+            btnPbPdf: document.getElementById('btn-pb-pdf'),
+            btnResetPdf: document.getElementById('btn-reset-pdf'),
+            
+            searchInput: document.getElementById('search-input'),
+            sortSelect: document.getElementById('sort-select'),
+            
+            tableBody: document.getElementById('table-body'),
+            tableViewMode: document.getElementById('table-view-mode'),
+            tabBb: document.getElementById('tab-bb'),
+            tabPb: document.getElementById('tab-pb'),
+            
+            statOrders: document.getElementById('stat-orders'),
+            statSkus: document.getElementById('stat-skus'),
+            statPieces: document.getElementById('stat-pieces'),
+        };
+
+        const app = {
+            
+            init() {
+                this.setupDragAndDrop(ui.excelZone, ui.excelInput, this.handleExcelUpload.bind(this));
+                this.setupDragAndDrop(ui.pdfZone, ui.pdfInput, this.handlePDFUpload.bind(this));
+                
+                // فتح نافذة اختيار الملفات عند الضغط
+                ui.excelZone.addEventListener('click', () => ui.excelInput.click());
+                ui.pdfZone.addEventListener('click', () => {
+                    if (state.excelData.length > 0) ui.pdfInput.click();
+                });
+
+                // تفعيل البحث المباشر
+                ui.searchInput.addEventListener('input', () => {
+                    this.renderTable(state.activeView);
+                });
+
+                // تفعيل الترتيب الذكي
+                ui.sortSelect.addEventListener('change', (e) => {
+                    state.sortMode = e.target.value;
+                    this.renderTable(state.activeView);
+                });
+            },
+
+            resetPDFs() {
+                if(!state.pdfLoaded) return;
+                
+                // مسح البوالص من الذاكرة فقط
+                state.extractedOrderIds.clear();
+                state.pdfLoaded = false;
+                ui.pdfInput.value = '';
+                
+                // إعادة الواجهة الخاصة بالنظام الثاني لحالتها الافتراضية
+                ui.pdfStatus.classList.add('hidden');
+                ui.btnPbExcel.disabled = true;
+                ui.btnPbPdf.disabled = true;
+                ui.tabPb.disabled = true;
+                ui.btnResetPdf.classList.add('hidden');
+                
+                // مسح حقل البحث والعودة لعرض الشيت الكامل
+                ui.searchInput.value = '';
+                this.switchView('big-bulk');
+            },
+
+            resetSession() {
+                state.excelData = [];
+                state.extractedOrderIds.clear();
+                state.activeView = 'big-bulk';
+                state.pdfLoaded = false;
+                state.sortMode = 'alpha';
+                
+                ui.excelInput.value = '';
+                ui.pdfInput.value = '';
+                ui.searchInput.value = '';
+                ui.sortSelect.value = 'alpha';
+                
+                ui.excelStatus.classList.add('hidden');
+                ui.pdfStatus.classList.add('hidden');
+                ui.pdfOverlay.classList.remove('hidden');
+                
+                ui.btnBbExcel.disabled = true;
+                ui.btnBbPdf.disabled = true;
+                ui.btnPbExcel.disabled = true;
+                ui.btnPbPdf.disabled = true;
+                ui.tabPb.disabled = true;
+                ui.btnResetPdf.classList.add('hidden');
+                
+                this.updateStats(0, 0, 0);
+                this.switchView('big-bulk', true);
+                
+                ui.tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="px-6 py-16 text-center text-slate-400">
+                            <svg class="mx-auto h-14 w-14 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                            <p class="text-lg font-semibold text-slate-600">تم تفريغ البيانات بنجاح</p>
+                            <p class="text-sm mt-1">ارفع شيت الإكسيل الجديد للبدء.</p>
+                        </td>
+                    </tr>`;
+            },
+
+            setupDragAndDrop(zone, input, callback) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    zone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }, false);
+                });
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    zone.addEventListener(eventName, () => zone.classList.add('active'), false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    zone.addEventListener(eventName, () => zone.classList.remove('active'), false);
+                });
+
+                zone.addEventListener('drop', (e) => {
+                    let dt = e.dataTransfer;
+                    let files = dt.files;
+                    if (files.length > 0) callback(files);
+                });
+
+                input.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) callback(e.target.files);
+                });
+            },
+
+            parseDescriptionItems(descString) {
+                if (!descString) return [];
+                const lines = String(descString).split(/\r?\n/);
+                const result = [];
+
+                const processProductName = (rawName, qty) => {
+                    // التحقق مما إذا كان الاسم يبدأ بأقواس مربعة (باقة/Duo)
+                    const isBundle = /^\s*\[.*?\]/.test(rawName);
+                    
+                    // إزالة ما بداخل القوس في البداية فقط
+                    let cleanName = rawName.replace(/^\s*\[.*?\]\s*/, '');
+                    
+                    if (isBundle) {
+                        // إذا كان باقة (يبدأ بأقواس)، قم بتقسيمه بناءً على علامة +
+                        let parts = cleanName.split(/\s+\+\s+/);
+                        parts.forEach(part => {
+                            let finalName = part.replace(/^[-_\s]+/, '').trim();
+                            if (finalName) {
+                                result.push({ name: finalName, qty: qty });
+                            }
+                        });
+                    } else {
+                        // إذا لم يكن باقة، اعتبره منتجاً واحداً (مثل Mary&May - Tranexamic Acid + Glutathione)
+                        let finalName = cleanName.replace(/^[-_\s]+/, '').trim();
+                        if (finalName) {
+                            result.push({ name: finalName, qty: qty });
+                        }
+                    }
+                };
+
+                lines.forEach(line => {
+                    line = line.trim();
+                    if (!line) return;
+
+                    // تعبير نمطي (Regex) يلتقط اسم المنتج حتى علامة x ثم الرقم
+                    const regex = /(.*?)\s*x\s*(\d+)/gi;
+                    let match;
+                    let lastIndex = 0;
+                    let foundAny = false;
+
+                    while ((match = regex.exec(line)) !== null) {
+                        foundAny = true;
+                        let rawName = match[1];
+                        let qty = parseInt(match[2], 10);
+                        
+                        processProductName(rawName, qty);
+                        
+                        lastIndex = regex.lastIndex;
+                    }
+
+                    // إذا كان هناك نص متبقي في نهاية السطر بدون "x رقم"
+                    if (foundAny) {
+                        if (lastIndex < line.length) {
+                            let remaining = line.substring(lastIndex).trim();
+                            if (remaining) {
+                                processProductName(remaining, 1);
+                            }
+                        }
+                    } else {
+                        // إذا لم يحتوي السطر على أي نمط "x 1"، نعتبر السطر منتج واحد أو باقة (سيتم فحص الـ + داخلها أيضاً)
+                        processProductName(line, 1);
+                    }
+                });
+                return result;
+            },
+
+            handleExcelUpload(files) {
+                const file = files[0];
+                if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
+                    this.showError(ui.excelStatus, ui.excelStatusText, "صيغة غير مدعومة. يرجى رفع ملف إكسيل أو CSV.");
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.SheetNames[0];
+                        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: "" });
+
+                        if (rows.length === 0) throw new Error("شيت الإكسيل فارغ.");
+
+                        const keys = Object.keys(rows[0]);
+                        
+                        // تطبيق قواعد القراءة الصارمة (Strict Rules) حصراً على الأعمدة المحددة
+                        const orderIdKey = keys.find(k => k.trim().toLowerCase() === 'business reference number') || 
+                                           keys.find(k => String(k).trim().toLowerCase().includes('business reference'));
+                        
+                        const descKey = keys.find(k => k.trim().toLowerCase() === 'description');
+
+                        if (!orderIdKey) {
+                            throw new Error("خطأ قراءة صارم: لم يتم العثور على عمود (Business Reference Number). يرجى التحقق من الشيت.");
+                        }
+                        if (!descKey) {
+                            throw new Error("خطأ قراءة صارم: لم يتم العثور على عمود الوصف (Description). يرجى التحقق من الشيت.");
+                        }
+
+                        state.excelData = rows.map(row => {
+                            const rawId = String(row[orderIdKey]).trim();
+                            const rawDesc = row[descKey];
+                            return {
+                                orderId: rawId,
+                                items: this.parseDescriptionItems(rawDesc)
+                            };
+                        }).filter(row => row.orderId !== "");
+
+                        // تحديث الواجهة
+                        ui.excelStatus.classList.remove('hidden', 'bg-rose-50', 'text-rose-700', 'border-rose-200');
+                        ui.excelStatus.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+                        ui.excelStatusText.innerText = `تم قراءة ${state.excelData.length} أوردر بنجاح.`;
+                        
+                        ui.pdfOverlay.classList.add('hidden');
+                        ui.btnBbExcel.disabled = false;
+                        ui.btnBbPdf.disabled = false;
+                        
+                        // إعادة تعيين وضع PDF لو رُفع إكسيل جديد
+                        state.extractedOrderIds.clear();
+                        state.pdfLoaded = false;
+                        ui.pdfStatus.classList.add('hidden');
+                        ui.tabPb.disabled = true;
+                        ui.btnPbExcel.disabled = true;
+                        ui.btnPbPdf.disabled = true;
+                        ui.btnResetPdf.classList.add('hidden');
+
+                        this.switchView('big-bulk');
+
+                    } catch (err) {
+                        this.showError(ui.excelStatus, ui.excelStatusText, `خطأ في قراءة الملف: ${err.message}`);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            },
+
+            async handlePDFUpload(files) {
+                if (state.excelData.length === 0) return;
+                
+                const pdfFiles = Array.from(files).filter(f => f.type === 'application/pdf');
+                if (pdfFiles.length === 0) {
+                    alert("يرجى التأكد من رفع ملفات بصيغة PDF فقط.");
+                    return;
+                }
+
+                // 1. إظهار واجهة التحميل فوراً قبل أي معالجة ثقيلة
+                ui.pdfStatus.classList.remove('hidden', 'bg-rose-50', 'text-rose-700', 'border-rose-200');
+                ui.pdfStatus.classList.add('bg-amber-50', 'text-amber-700', 'border-amber-200');
+                ui.pdfCheck.classList.add('hidden');
+                ui.pdfSpinner.classList.remove('hidden');
+                ui.pdfStatusText.innerHTML = `جاري التجهيز لمعالجة <b>${pdfFiles.length}</b> ملف PDF...`;
+
+                // إعطاء المتصفح 100 ملي ثانية ليرسم السبينر على الشاشة قبل أن يتجمد في المعالجة
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                try {
+                    let fullTextDump = "";
+
+                    // 2. معالجة الملفات واحداً تلو الآخر لتجنب انهيار المتصفح (Memory Leak)
+                    for (let i = 0; i < pdfFiles.length; i++) {
+                        // تحديث النص ليوضح التقدم
+                        ui.pdfStatusText.innerHTML = `جاري استخراج النصوص... (ملف ${i + 1} من ${pdfFiles.length})`;
+                        
+                        // إعطاء المتصفح فرصة لتحديث النص
+                        if (i % 5 === 0) await new Promise(resolve => setTimeout(resolve, 10)); 
+
+                        const file = pdfFiles[i];
+                        const arrayBuffer = await file.arrayBuffer();
+                        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                        
+                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                            const page = await pdf.getPage(pageNum);
+                            const textContent = await page.getTextContent();
+                            const pageText = textContent.items.map(item => item.str).join(" ");
+                            fullTextDump += " " + pageText;
+                        }
+                    }
+
+                    // 3. المطابقة الصارمة مع بيانات الإكسيل
+                    ui.pdfStatusText.innerHTML = `جاري مطابقة الأوردرات مع شيت الإكسيل...`;
+                    await new Promise(resolve => setTimeout(resolve, 50));
+
+                    state.extractedOrderIds.clear();
+                    // إزالة كل المسافات من النص المستخرج من الـ PDFs لضمان دقة البحث
+                    const noSpaceDump = fullTextDump.replace(/\s+/g, '');
+                    
+                    state.excelData.forEach(row => {
+                        // إزالة المسافات من رقم الأوردر في الإكسيل
+                        const noSpaceId = String(row.orderId).replace(/\s+/g, '');
+                        // التأكد من أن الرقم لا يقل عن 4 أرقام لتجنب المطابقات الخاطئة
+                        if (noSpaceId.length > 3 && noSpaceDump.includes(noSpaceId)) {
+                            state.extractedOrderIds.add(row.orderId);
+                        }
+                    });
+
+                    // 4. إنهاء العملية بنجاح وتحديث الواجهة
+                    state.pdfLoaded = true;
+                    ui.pdfSpinner.classList.add('hidden');
+                    ui.pdfCheck.classList.remove('hidden');
+                    
+                    if (state.extractedOrderIds.size === 0) {
+                        ui.pdfStatus.classList.replace('bg-amber-50', 'bg-rose-50');
+                        ui.pdfStatus.classList.replace('text-amber-700', 'text-rose-700');
+                        ui.pdfStatus.classList.replace('border-amber-200', 'border-rose-200');
+                        ui.pdfStatusText.innerHTML = `لم يتم العثور على أي أوردر مطابق داخل الـ ${pdfFiles.length} ملف المرفوعة!`;
+                    } else {
+                        ui.pdfStatus.classList.replace('bg-amber-50', 'bg-emerald-50');
+                        ui.pdfStatus.classList.replace('text-amber-700', 'text-emerald-700');
+                        ui.pdfStatus.classList.replace('border-amber-200', 'border-emerald-200');
+                        ui.pdfStatusText.innerHTML = `تم الفلترة بنجاح. وجدنا <b class="font-bold text-lg">${state.extractedOrderIds.size}</b> أوردر مطابق.`;
+                    }
+
+                    ui.btnPbExcel.disabled = false;
+                    ui.btnPbPdf.disabled = false;
+                    ui.tabPb.disabled = false;
+                    ui.btnResetPdf.classList.remove('hidden');
+
+                    // 5. الانتقال للجدول المفلتر
+                    this.switchView('per-bulk');
+
+                } catch (err) {
+                    ui.pdfSpinner.classList.add('hidden');
+                    ui.pdfCheck.classList.remove('hidden');
+                    this.showError(ui.pdfStatus, ui.pdfStatusText, `حدث خطأ أثناء معالجة ملفات PDF: ${err.message}`);
+                }
+            },
+
+            switchView(mode, skipRender = false) {
+                state.activeView = mode;
+                
+                // تحديث شكل الأزرار (Tabs)
+                if (mode === 'big-bulk') {
+                    ui.tabBb.classList.replace('text-slate-500', 'text-blue-700');
+                    ui.tabBb.classList.replace('hover:text-slate-700', 'bg-blue-50');
+                    ui.tabBb.classList.add('bg-blue-50');
+                    
+                    ui.tabPb.classList.replace('text-amber-700', 'text-slate-500');
+                    ui.tabPb.classList.remove('bg-amber-50');
+                    ui.tabPb.classList.add('hover:text-slate-700');
+                    
+                    ui.tableViewMode.innerText = "الوضع الحالي: التحضير الشامل لجميع الأوردرات (Big Bulk)";
+                    ui.tableViewMode.className = "text-sm text-blue-600 font-bold mt-1";
+                } else {
+                    ui.tabPb.classList.replace('text-slate-500', 'text-amber-700');
+                    ui.tabPb.classList.replace('hover:text-slate-700', 'bg-amber-50');
+                    ui.tabPb.classList.add('bg-amber-50');
+                    
+                    ui.tabBb.classList.replace('text-blue-700', 'text-slate-500');
+                    ui.tabBb.classList.remove('bg-blue-50');
+                    ui.tabBb.classList.add('hover:text-slate-700');
+                    
+                    ui.tableViewMode.innerText = "الوضع الحالي: تحضير الأوردرات المفلترة فقط (Per-Bulk)";
+                    ui.tableViewMode.className = "text-sm text-amber-600 font-bold mt-1";
+                }
+
+                if (!skipRender) {
+                    this.renderTable(mode);
+                }
+            },
+
+            getAggregatedData(mode) {
+                let itemsToProcess = state.excelData;
+                let activeOrdersCount = state.excelData.length;
+
+                if (mode === 'per-bulk') {
+                    itemsToProcess = state.excelData.filter(row => state.extractedOrderIds.has(row.orderId));
+                    activeOrdersCount = itemsToProcess.length;
+                }
+
+                let aggregationMap = {};
+
+                itemsToProcess.forEach(row => {
+                    row.items.forEach(item => {
+                        if (!aggregationMap[item.name]) aggregationMap[item.name] = 0;
+                        aggregationMap[item.name] += item.qty;
+                    });
+                });
+
+                // تحويل الماب إلى مصفوفة
+                let finalAggregatedList = Object.keys(aggregationMap).map(k => ({
+                    name: k,
+                    qty: aggregationMap[k]
+                }));
+
+                // فلترة النتائج بناءً على البحث
+                const searchTerm = ui.searchInput.value.trim().toLowerCase();
+                if (searchTerm) {
+                    finalAggregatedList = finalAggregatedList.filter(item => 
+                        item.name.toLowerCase().includes(searchTerm)
+                    );
+                }
+
+                // الترتيب الذكي بناءً على اختيار المستخدم
+                if (state.sortMode === 'alpha') {
+                    finalAggregatedList.sort((a, b) => a.name.localeCompare(b.name));
+                } else if (state.sortMode === 'qty-desc') {
+                    finalAggregatedList.sort((a, b) => b.qty - a.qty);
+                } else if (state.sortMode === 'qty-asc') {
+                    finalAggregatedList.sort((a, b) => a.qty - b.qty);
+                }
+
+                // إعادة حساب إجمالي القطع بناءً على القائمة المفلترة بالبحث
+                let totalItemsCount = finalAggregatedList.reduce((sum, item) => sum + item.qty, 0);
+
+                return { finalAggregatedList, activeOrdersCount, totalItemsCount };
+            },
+
+            renderTable(mode) {
+                const { finalAggregatedList, activeOrdersCount, totalItemsCount } = this.getAggregatedData(mode);
+                
+                this.updateStats(activeOrdersCount, finalAggregatedList.length, totalItemsCount);
+                ui.tableBody.innerHTML = '';
+                
+                if (finalAggregatedList.length === 0) {
+                    ui.tableBody.innerHTML = `<tr><td colspan="3" class="px-6 py-12 text-center text-slate-500 font-medium">لا توجد منتجات مطابقة للعرض في هذا الوضع.</td></tr>`;
+                    return;
+                }
+
+                finalAggregatedList.forEach((item, index) => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100";
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-slate-500 border-l border-slate-200">${index + 1}</td>
+                        <td class="px-6 py-4 text-base font-bold text-slate-800 border-l border-slate-200 product-name" dir="ltr" style="text-align: left;">${item.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-xl text-center text-slate-900 font-black bg-slate-50/50">${item.qty}</td>
+                    `;
+                    ui.tableBody.appendChild(tr);
+                });
+            },
+
+            updateStats(orders, skus, pieces) {
+                ui.statOrders.innerText = orders;
+                ui.statSkus.innerText = skus;
+                ui.statPieces.innerText = pieces;
+            },
+
+            showError(container, textEl, message) {
+                container.classList.remove('hidden', 'bg-emerald-50', 'bg-amber-50', 'text-emerald-700', 'text-amber-700', 'border-emerald-200', 'border-amber-200');
+                container.classList.add('bg-rose-50', 'text-rose-700', 'border-rose-200');
+                textEl.innerText = message;
+            },
+
+            exportData(mode, type) {
+                const { finalAggregatedList, activeOrdersCount, totalItemsCount } = this.getAggregatedData(mode);
+                
+                if (finalAggregatedList.length === 0) {
+                    alert("لا توجد بيانات للتصدير.");
+                    return;
+                }
+
+                const dateStr = this.getFormattedDate();
+                const modeName = mode === 'big-bulk' ? 'BigBulk' : 'PerBulk';
+                
+                // طلب اسم الملف من المستخدم
+                const defaultFileName = `PickList_${modeName}_${dateStr}`;
+                let customFileName = prompt("يرجى إدخال اسم الملف الذي ترغب في حفظه:", defaultFileName);
+                
+                // إذا ضغط المستخدم على Cancel (إلغاء)
+                if (customFileName === null) {
+                    return;
+                }
+                
+                // إذا ترك الاسم فارغاً، نستخدم الاسم الافتراضي
+                customFileName = customFileName.trim() === "" ? defaultFileName : customFileName.trim();
+
+                
+                if (type === 'excel') {
+                    const exportData = finalAggregatedList.map((item, index) => ({
+                        "#": index + 1,
+                        "Product Name": item.name,
+                        "Total Quantity": item.qty
+                    }));
+
+                    const worksheet = XLSX.utils.json_to_sheet(exportData);
+                    worksheet['!cols'] = [{ wch: 5 }, { wch: 70 }, { wch: 20 }];
+
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, worksheet, modeName);
+                    
+                    XLSX.writeFile(workbook, `${customFileName}.xlsx`);
+                
+                } else if (type === 'pdf') {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+                    
+                    // تصغير العنوان والمساحات العلوية لتوفير مساحة للجدول
+                    doc.setFontSize(16);
+                    doc.setTextColor(30, 41, 59);
+                    doc.text("Warehouse Pick List", 14, 15);
+                    
+                    doc.setFontSize(9);
+                    doc.setTextColor(100, 116, 139);
+                    const docModeStr = mode === 'big-bulk' ? 'Mode: All Data (Big Bulk)' : 'Mode: PDF Filtered (Per-Bulk)';
+                    doc.text(`${docModeStr} | Orders: ${activeOrdersCount} | Total Items: ${totalItemsCount}`, 14, 21);
+                    doc.text(`Generated: ${dateStr}`, 14, 26);
+
+                    const tableColumn = ["#", "Product Name", "Total Quantity"];
+                    const tableRows = finalAggregatedList.map((item, index) => [
+                        index + 1,
+                        item.name,
+                        item.qty.toString()
+                    ]);
+
+                    doc.autoTable({
+                        head: [tableColumn],
+                        body: tableRows,
+                        startY: 30, // رفع الجدول للأعلى قليلاً
+                        theme: 'grid',
+                        styles: {
+                            font: 'helvetica',
+                            lineColor: [30, 41, 59],
+                            lineWidth: 0.1, // تصغير سُمك الخطوط
+                            textColor: [15, 23, 42],
+                            fontSize: 9, // تصغير حجم الخط العام لاستيعاب سطور أكثر
+                            cellPadding: 2.5, // تقليل الهوامش داخل الخلايا بشكل كبير
+                        },
+                        headStyles: {
+                            fillColor: [241, 245, 249],
+                            textColor: [15, 23, 42],
+                            fontStyle: 'bold',
+                            halign: 'center',
+                            fontSize: 10
+                        },
+                        columnStyles: {
+                            0: { halign: 'center', cellWidth: 12 },
+                            1: { halign: 'left' }, 
+                            2: { halign: 'center', fontStyle: 'bold', cellWidth: 35, textColor: [0, 0, 0], fontSize: 11 } // تصغير الخط هنا أيضاً
+                        },
+                        alternateRowStyles: {
+                            fillColor: [250, 250, 250] 
+                        }
+                    });
+
+                    doc.save(`${customFileName}.pdf`);
+                }
+            },
+
+            getFormattedDate() {
+                const now = new Date();
+                return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+
+    </script>
+</body>
+</html>
