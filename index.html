@@ -11,7 +11,7 @@
     <!-- SheetJS (Excel Parsing & Export) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
-    <!-- PDF.js (PDF Text Extraction) -->
+    <!-- PDF.js (PDF Text Extraction - Kept for compatibility but unused in the new filename logic) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
     <!-- jsPDF & AutoTable (PDF Report Generation) -->
@@ -19,12 +19,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
     <!-- Google Fonts: Cairo for Arabic, Inter for English Products -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         body {
             font-family: 'Cairo', sans-serif;
-            background-color: #f1f5f9;
+            background-color: #f8fafc;
         }
 
         .product-name {
@@ -53,40 +53,53 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Custom scrollbar for table */
-        .table-container::-webkit-scrollbar {
+        /* Custom scrollbar for tables */
+        .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
             height: 6px;
         }
-        .table-container::-webkit-scrollbar-track {
+        .custom-scrollbar::-webkit-scrollbar-track {
             background: #f1f1f1; 
             border-radius: 4px;
         }
-        .table-container::-webkit-scrollbar-thumb {
+        .custom-scrollbar::-webkit-scrollbar-thumb {
             background: #cbd5e1; 
             border-radius: 4px;
         }
-        .table-container::-webkit-scrollbar-thumb:hover {
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8; 
         }
     </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <div class="max-w-7xl mx-auto px-4 py-8 w-full flex-grow flex flex-col gap-6">
+    <!-- Navigation Tabs -->
+    <nav class="bg-white border-b border-slate-200 px-6 pt-4 flex gap-8 shadow-sm sticky top-0 z-20">
+        <button onclick="app.switchMainView('dashboard')" id="nav-dashboard" class="font-bold text-blue-700 border-b-[3px] border-blue-700 pb-3 transition-colors text-lg flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+            لوحة التحضير الأساسية
+        </button>
+        <button onclick="app.switchMainView('orders')" id="nav-orders" class="font-bold text-slate-500 border-b-[3px] border-transparent hover:text-slate-800 pb-3 transition-colors text-lg flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+            إدارة الأوردرات والتتبع
+        </button>
+    </nav>
+
+    <!-- VIEW 1: Dashboard (Original Pick List Tool) -->
+    <div id="dashboard-view" class="max-w-7xl mx-auto px-4 py-8 w-full flex-grow flex flex-col gap-6">
         
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <div>
                 <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
                     <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                    نظام تجميع وتحضير الطلبات
+                    نظام تجميع وتحضير الطلبات (متصل بالسحابة)
                 </h1>
-                <p class="text-sm text-slate-500 mt-2">قم برفع شيت الإكسيل أولاً، ثم بوالص الـ PDF لفلترة المنتجات واستخراج قوائم التحضير.</p>
+                <p class="text-sm text-slate-500 mt-2">قم برفع شيت الإكسيل أولاً، ثم بوالص الـ PDF لفلترة المنتجات حسب أسماء الملفات.</p>
             </div>
             <button onclick="app.resetSession()" class="mt-4 md:mt-0 flex items-center gap-2 px-5 py-2.5 bg-rose-50 text-rose-600 font-semibold rounded-xl hover:bg-rose-100 transition-colors border border-rose-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                تفريغ البيانات والبدء من جديد
+                تفريغ البيانات
             </button>
         </header>
 
@@ -130,7 +143,7 @@
                     <span class="bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-lg text-sm font-bold">النظام الأول</span>
                     التحضير الشامل (Big Bulk)
                 </h2>
-                <p class="text-sm text-slate-500 mb-4">ارفع شيت الإكسيل لاستخراج إجمالي بضاعة اليوم كاملة.</p>
+                <p class="text-sm text-slate-500 mb-4">ارفع شيت الإكسيل لاستخراج إجمالي بضاعة اليوم كاملة وحفظها بالسحابة.</p>
                 
                 <div id="excel-drop-zone" class="drop-zone flex-grow border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 flex flex-col items-center justify-center p-8 cursor-pointer hover:bg-slate-100 min-h-[200px]">
                     <input type="file" id="excel-input" class="hidden" accept=".xlsx, .xls, .csv">
@@ -144,7 +157,6 @@
                     <span id="excel-status-text">تم تحميل الأوردرات بنجاح.</span>
                 </div>
 
-                <!-- Big Bulk Export Buttons -->
                 <div class="mt-4 pt-4 border-t border-slate-100 flex gap-3">
                     <button onclick="app.exportData('big-bulk', 'excel')" id="btn-bb-excel" disabled class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
                         تصدير Excel
@@ -155,17 +167,15 @@
                 </div>
             </div>
 
-            <!-- System 2: Per Bulk (PDF) -->
+            <!-- System 2: Per Bulk (PDF File Name Matching) -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-2 h-full bg-amber-500 z-0"></div>
                 
-                <!-- Overlay lock -->
                 <div id="pdf-overlay" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl transition-opacity">
                     <div class="bg-white p-4 rounded-full shadow-sm mb-3">
                         <svg class="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                     </div>
                     <p class="text-base font-bold text-slate-700">يجب رفع شيت الإكسيل أولاً</p>
-                    <p class="text-sm text-slate-500 mt-1">لفتح نظام التحضير المخصص</p>
                 </div>
 
                 <div class="flex justify-between items-start mb-2 relative z-0">
@@ -173,18 +183,18 @@
                         <span class="bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-lg text-sm font-bold">النظام الثاني</span>
                         التحضير المخصص (Per-Bulk)
                     </h2>
-                    <button onclick="app.resetPDFs()" id="btn-reset-pdf" title="مسح بوالص الـ PDF المرفوعة والعودة للنظام الشامل" class="hidden text-sm font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-rose-100">
+                    <button onclick="app.resetPDFs()" id="btn-reset-pdf" title="مسح البوالص" class="hidden text-sm font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-rose-100">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         مسح البوالص
                     </button>
                 </div>
-                <p class="text-sm text-slate-500 mb-4 relative z-0">ارفع بوالص الشحن لعمل <b>فلترة صارمة</b> واستخراج منتجاتها فقط.</p>
+                <p class="text-sm text-slate-500 mb-4 relative z-0">ارفع بوالص الشحن. <b>النظام سيقوم بالبحث عن أرقام الأوردرات في "أسماء الملفات" فقط.</b></p>
                 
                 <div id="pdf-drop-zone" class="drop-zone flex-grow border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 flex flex-col items-center justify-center p-8 cursor-pointer hover:bg-slate-100 min-h-[200px] relative z-0">
                     <input type="file" id="pdf-input" class="hidden" accept="application/pdf" multiple>
                     <svg class="w-14 h-14 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                     <p class="text-base font-bold text-slate-700 text-center">اسحب وأفلت بوالص الـ PDF</p>
-                    <p class="text-sm text-slate-500 mt-1">يمكنك تحديد عدة ملفات معاً</p>
+                    <p class="text-sm text-slate-500 mt-1">يجب أن يحتوي اسم الملف على رقم الأوردر</p>
                 </div>
 
                 <div id="pdf-status" class="mt-4 hidden p-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm font-semibold flex items-center gap-2 relative z-0">
@@ -193,7 +203,6 @@
                     <span id="pdf-status-text">جاهز للمعالجة...</span>
                 </div>
 
-                <!-- Per Bulk Export Buttons -->
                 <div class="mt-4 pt-4 border-t border-slate-100 flex gap-3 relative z-0">
                     <button onclick="app.exportData('per-bulk', 'excel')" id="btn-pb-excel" disabled class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
                         تصدير Excel (مفلتر)
@@ -212,19 +221,19 @@
                     <p id="table-view-mode" class="text-sm text-blue-600 font-semibold mt-1">الوضع الحالي: التحضير الشامل (Big Bulk)</p>
                 </div>
                 <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                    <!-- Sort Filter -->
+                    <div class="relative w-full sm:w-48 shrink-0">
+                        <select id="sort-filter" class="w-full pr-10 pl-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 bg-white shadow-sm appearance-none font-bold cursor-pointer">
+                            <option value="alpha">أبجدي (A-Z)</option>
+                            <option value="qty-desc">الكمية (الأعلى أولاً)</option>
+                            <option value="qty-asc">الكمية (الأقل أولاً)</option>
+                        </select>
+                        <svg class="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
                     <!-- Search Input -->
                     <div class="relative w-full sm:w-72 shrink-0">
-                        <input type="text" id="search-input" placeholder="بحث عن منتج (مثال: Without box)..." class="w-full pr-10 pl-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 bg-white shadow-sm">
+                        <input type="text" id="search-input" placeholder="بحث عن منتج..." class="w-full pr-10 pl-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 bg-white shadow-sm">
                         <svg class="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    </div>
-                    <!-- Sort Dropdown -->
-                    <div class="relative shrink-0 w-full sm:w-auto">
-                        <select id="sort-select" class="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 bg-white shadow-sm appearance-none cursor-pointer font-semibold">
-                            <option value="alpha">🔤 ترتيب أبجدي (A - Z)</option>
-                            <option value="qty-desc">⬇️ الأعلى كمية أولاً</option>
-                            <option value="qty-asc">⬆️ الأقل كمية أولاً</option>
-                        </select>
-                        <svg class="w-5 h-5 text-blue-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
                     </div>
                     <!-- Tabs -->
                     <div class="flex gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm w-full sm:w-auto justify-center">
@@ -234,23 +243,19 @@
                 </div>
             </div>
 
-            <div class="table-container overflow-auto relative bg-white max-h-[600px]">
+            <div class="custom-scrollbar overflow-auto relative bg-white max-h-[600px]">
                 <table class="min-w-full divide-y divide-slate-200">
                     <thead class="bg-slate-100 sticky top-0 z-10 shadow-sm">
                         <tr>
                             <th scope="col" class="px-6 py-4 text-center text-sm font-bold text-slate-600 uppercase tracking-wider w-20 border-l border-slate-200">#</th>
-                            <th scope="col" class="px-6 py-4 text-right text-sm font-bold text-slate-600 uppercase tracking-wider border-l border-slate-200">
-                                اسم المنتج / Product Name <br><span class="text-xs font-normal text-slate-500">(محاذاة لليسار)</span>
-                            </th>
-                            <th scope="col" class="px-6 py-4 text-center text-sm font-bold text-slate-900 uppercase tracking-wider w-48 bg-slate-200">العدد المطلوب<br>Total Quantity</th>
+                            <th scope="col" class="px-6 py-4 text-right text-sm font-bold text-slate-600 uppercase tracking-wider border-l border-slate-200">اسم المنتج / Product Name</th>
+                            <th scope="col" class="px-6 py-4 text-center text-sm font-bold text-slate-900 uppercase tracking-wider w-48 bg-slate-200">العدد المطلوب</th>
                         </tr>
                     </thead>
                     <tbody id="table-body" class="bg-white divide-y divide-slate-200">
                         <tr>
                             <td colspan="3" class="px-6 py-16 text-center text-slate-400">
-                                <svg class="mx-auto h-14 w-14 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
-                                <p class="text-lg font-semibold text-slate-600">لا توجد بيانات للعرض حالياً</p>
-                                <p class="text-sm mt-1">يرجى رفع ملف إكسيل للبدء.</p>
+                                <p class="text-lg font-semibold text-slate-600">جاري مزامنة البيانات من السحابة...</p>
                             </td>
                         </tr>
                     </tbody>
@@ -259,21 +264,103 @@
         </div>
     </div>
 
-    <script>
-        // إعداد مشغل PDF.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    <!-- VIEW 2: Orders Management (New View) -->
+    <div id="orders-view" class="hidden max-w-7xl mx-auto px-4 py-8 w-full flex-grow flex-col gap-6">
+        
+        <!-- Header & Toolbar -->
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                إدارة الأوردرات الشاملة
+                <span id="orders-count-badge" class="bg-blue-100 text-blue-700 text-sm px-3 py-1 rounded-full font-black shadow-sm mr-2">0</span>
+            </h2>
+            
+            <div class="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                <!-- Status Filter -->
+                <div class="relative w-full sm:w-48 shrink-0">
+                    <select id="orders-status-filter" class="w-full pl-4 pr-10 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 bg-slate-50 hover:bg-white shadow-sm appearance-none font-bold cursor-pointer">
+                        <option value="all">كل الأوردرات (All)</option>
+                        <option value="uploaded">تم الرفع (جاهز)</option>
+                        <option value="pending">بانتظار الـ PDF</option>
+                    </select>
+                    <svg class="w-5 h-5 text-blue-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
 
-        // --- حالة التطبيق الأساسية ---
-        const state = {
-            excelData: [],         // البيانات الأصلية من الإكسيل { orderId, items: [{name, qty}] }
-            extractedOrderIds: new Set(), // أرقام الأوردرات المستخرجة من الـ PDFs
-            activeView: 'big-bulk', // 'big-bulk' أو 'per-bulk'
-            pdfLoaded: false,
-            sortMode: 'alpha'       // طريقة الترتيب الافتراضية
+                <!-- Search Input -->
+                <div class="relative w-full sm:w-80">
+                    <input type="text" id="orders-search-input" placeholder="ابحث باسم المنتج، رقم الأوردر..." class="w-full pr-10 pl-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 bg-slate-50 hover:bg-white shadow-inner">
+                    <svg class="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                
+                <!-- Quick PDF upload from Orders page -->
+                <button onclick="document.getElementById('pdf-input').click()" class="flex-shrink-0 flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors shadow-sm text-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    رفع بوالص
+                </button>
+            </div>
+        </div>
+
+        <!-- Orders Table Layout -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex-grow overflow-hidden">
+            <div class="custom-scrollbar overflow-x-auto relative w-full h-[650px]">
+                <table class="w-full text-right text-sm whitespace-nowrap min-w-[800px]">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th class="p-5 w-48 text-right border-l border-slate-200">رقم الأوردر</th>
+                            <th class="p-5 border-l border-slate-200 text-right">المنتجات (Products)</th>
+                            <th class="p-5 w-64 text-center">حالة البوليصة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-list-container" class="divide-y divide-slate-100 bg-white">
+                        <!-- Orders will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase & Application Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAs_x8Ew_6CITsbgHL40jxOlhNxpCsNVtE",
+            authDomain: "package-bulk-app.firebaseapp.com",
+            projectId: "package-bulk-app",
+            storageBucket: "package-bulk-app.firebasestorage.app",
+            messagingSenderId: "956532217785",
+            appId: "1:956532217785:web:ce68a278a49824c8734868"
         };
 
-        // --- عناصر الواجهة ---
+        const firebaseApp = initializeApp(firebaseConfig);
+        const db = getFirestore(firebaseApp);
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        const state = {
+            excelData: [],
+            extractedOrderIds: new Set(),
+            activeView: 'big-bulk',
+            pdfLoaded: false,
+            sortMode: 'alpha',
+            currentMainView: 'dashboard' // 'dashboard' or 'orders'
+        };
+
         const ui = {
+            // Main Views & Nav
+            navDashboard: document.getElementById('nav-dashboard'),
+            navOrders: document.getElementById('nav-orders'),
+            dashboardView: document.getElementById('dashboard-view'),
+            ordersView: document.getElementById('orders-view'),
+            
+            // Orders Elements
+            ordersSearchInput: document.getElementById('orders-search-input'),
+            ordersStatusFilter: document.getElementById('orders-status-filter'),
+            ordersListContainer: document.getElementById('orders-list-container'),
+            ordersCountBadge: document.getElementById('orders-count-badge'),
+
+            // Dashboard Elements
             excelZone: document.getElementById('excel-drop-zone'),
             excelInput: document.getElementById('excel-input'),
             excelStatus: document.getElementById('excel-status'),
@@ -293,7 +380,7 @@
             btnResetPdf: document.getElementById('btn-reset-pdf'),
             
             searchInput: document.getElementById('search-input'),
-            sortSelect: document.getElementById('sort-select'),
+            sortFilter: document.getElementById('sort-filter'),
             
             tableBody: document.getElementById('table-body'),
             tableViewMode: document.getElementById('table-view-mode'),
@@ -305,51 +392,204 @@
             statPieces: document.getElementById('stat-pieces'),
         };
 
-        const app = {
-            
+        window.app = {
             init() {
                 this.setupDragAndDrop(ui.excelZone, ui.excelInput, this.handleExcelUpload.bind(this));
                 this.setupDragAndDrop(ui.pdfZone, ui.pdfInput, this.handlePDFUpload.bind(this));
                 
-                // فتح نافذة اختيار الملفات عند الضغط
                 ui.excelZone.addEventListener('click', () => ui.excelInput.click());
                 ui.pdfZone.addEventListener('click', () => {
                     if (state.excelData.length > 0) ui.pdfInput.click();
                 });
 
-                // تفعيل البحث المباشر
                 ui.searchInput.addEventListener('input', () => {
                     this.renderTable(state.activeView);
                 });
 
-                // تفعيل الترتيب الذكي
-                ui.sortSelect.addEventListener('change', (e) => {
+                ui.sortFilter.addEventListener('change', (e) => {
                     state.sortMode = e.target.value;
                     this.renderTable(state.activeView);
                 });
+
+                // Listeners for Orders View filters
+                ui.ordersSearchInput.addEventListener('input', () => {
+                    this.renderOrdersView();
+                });
+                
+                ui.ordersStatusFilter.addEventListener('change', () => {
+                    this.renderOrdersView();
+                });
+
+                this.listenToCloudData();
+            },
+
+            switchMainView(view) {
+                state.currentMainView = view;
+                
+                if (view === 'dashboard') {
+                    ui.dashboardView.classList.remove('hidden');
+                    ui.dashboardView.classList.add('flex');
+                    ui.ordersView.classList.add('hidden');
+                    ui.ordersView.classList.remove('flex');
+
+                    ui.navDashboard.classList.add('text-blue-700', 'border-blue-700');
+                    ui.navDashboard.classList.remove('text-slate-500', 'border-transparent');
+                    ui.navOrders.classList.remove('text-blue-700', 'border-blue-700');
+                    ui.navOrders.classList.add('text-slate-500', 'border-transparent');
+                } else {
+                    ui.dashboardView.classList.add('hidden');
+                    ui.dashboardView.classList.remove('flex');
+                    ui.ordersView.classList.remove('hidden');
+                    ui.ordersView.classList.add('flex');
+
+                    ui.navOrders.classList.add('text-blue-700', 'border-blue-700');
+                    ui.navOrders.classList.remove('text-slate-500', 'border-transparent');
+                    ui.navDashboard.classList.remove('text-blue-700', 'border-blue-700');
+                    ui.navDashboard.classList.add('text-slate-500', 'border-transparent');
+
+                    this.renderOrdersView();
+                }
+            },
+
+            renderOrdersView() {
+                const searchTerm = ui.ordersSearchInput.value.trim().toLowerCase();
+                const statusFilter = ui.ordersStatusFilter.value;
+                
+                let filtered = state.excelData;
+
+                // Apply Filters (Search + Status)
+                filtered = filtered.filter(order => {
+                    const isExtracted = state.extractedOrderIds.has(order.orderId);
+                    
+                    // Filter by status dropdown
+                    if (statusFilter === 'uploaded' && !isExtracted) return false;
+                    if (statusFilter === 'pending' && isExtracted) return false;
+                    
+                    // Filter by text search
+                    if (searchTerm) {
+                        const matchId = String(order.orderId).toLowerCase().includes(searchTerm);
+                        const matchProduct = order.items.some(item => item.name.toLowerCase().includes(searchTerm));
+                        if (!matchId && !matchProduct) return false;
+                    }
+
+                    return true;
+                });
+
+                ui.ordersCountBadge.innerText = filtered.length;
+                ui.ordersListContainer.innerHTML = '';
+
+                if (filtered.length === 0) {
+                    ui.ordersListContainer.innerHTML = `<tr><td colspan="3" class="p-12 text-center text-slate-500 font-semibold text-lg">لا توجد أوردرات لعرضها أو مطابقة للبحث.</td></tr>`;
+                    return;
+                }
+
+                filtered.forEach(order => {
+                    const isExtracted = state.extractedOrderIds.has(order.orderId);
+                    
+                    // Status Badge
+                    const statusHtml = isExtracted
+                        ? `<div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 shadow-sm mx-auto">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                            تم الرفع (جاهز)
+                           </div>`
+                        : `<div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 text-slate-500 font-bold border border-slate-200 mx-auto">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            بانتظار الـ PDF
+                           </div>`;
+
+                    const productsHtml = order.items.map(item => `
+                        <div class="flex items-center justify-between gap-4 p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 rounded-lg transition-colors group/item">
+                            <span class="bg-indigo-50/80 text-indigo-700 border border-indigo-100 px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 shadow-sm group-hover/item:bg-indigo-100 transition-colors" dir="rtl">
+                                العدد: ${item.qty}
+                            </span>
+                            <span class="text-slate-800 font-semibold text-sm text-left product-name w-full leading-snug whitespace-normal" dir="ltr">
+                                ${item.name}
+                            </span>
+                        </div>
+                    `).join('');
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50/30 transition-colors group";
+                    tr.innerHTML = `
+                        <td class="p-6 align-top border-b border-slate-100 border-l border-slate-200">
+                            <div class="font-black text-slate-900 text-xl mb-1 text-right">#${order.orderId}</div>
+                        </td>
+                        <td class="p-4 align-top border-b border-slate-100 border-l border-slate-200 w-1/2">
+                            <div class="flex flex-col bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                                ${productsHtml}
+                            </div>
+                        </td>
+                        <td class="p-6 align-middle border-b border-slate-100 text-center">
+                            ${statusHtml}
+                        </td>
+                    `;
+                    ui.ordersListContainer.appendChild(tr);
+                });
+            },
+
+            async listenToCloudData() {
+                onSnapshot(collection(db, "orders"), (snapshot) => {
+                    const cloudRows = [];
+                    snapshot.forEach((docSnap) => {
+                        cloudRows.push(docSnap.data());
+                    });
+
+                    if (cloudRows.length > 0) {
+                        state.excelData = cloudRows;
+                        ui.pdfOverlay.classList.add('hidden');
+                        ui.btnBbExcel.disabled = false;
+                        ui.btnBbPdf.disabled = false;
+                        
+                        ui.excelStatus.classList.remove('hidden', 'bg-rose-50', 'text-rose-700', 'border-rose-200');
+                        ui.excelStatus.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+                        ui.excelStatusText.innerText = `تم مزامنة ${state.excelData.length} أوردر من السحابة بنجاح.`;
+                        
+                        this.renderTable(state.activeView);
+                        if (state.currentMainView === 'orders') this.renderOrdersView();
+                    }
+                });
+            },
+
+            async saveToCloud(rows) {
+                try {
+                    const querySnapshot = await getDocs(collection(db, "orders"));
+                    const deletePromises = querySnapshot.docs.map(d => deleteDoc(doc(db, "orders", d.id)));
+                    await Promise.all(deletePromises);
+
+                    for (let i = 0; i < rows.length; i++) {
+                        await setDoc(doc(db, "orders", String(i)), rows[i]);
+                    }
+                } catch (err) {
+                    console.error("Cloud save error: ", err);
+                }
             },
 
             resetPDFs() {
                 if(!state.pdfLoaded) return;
-                
-                // مسح البوالص من الذاكرة فقط
                 state.extractedOrderIds.clear();
                 state.pdfLoaded = false;
                 ui.pdfInput.value = '';
                 
-                // إعادة الواجهة الخاصة بالنظام الثاني لحالتها الافتراضية
                 ui.pdfStatus.classList.add('hidden');
                 ui.btnPbExcel.disabled = true;
                 ui.btnPbPdf.disabled = true;
                 ui.tabPb.disabled = true;
                 ui.btnResetPdf.classList.add('hidden');
                 
-                // مسح حقل البحث والعودة لعرض الشيت الكامل
                 ui.searchInput.value = '';
                 this.switchView('big-bulk');
+                if (state.currentMainView === 'orders') this.renderOrdersView();
             },
 
-            resetSession() {
+            async resetSession() {
+                try {
+                    const querySnapshot = await getDocs(collection(db, "orders"));
+                    const deletePromises = querySnapshot.docs.map(d => deleteDoc(doc(db, "orders", d.id)));
+                    await Promise.all(deletePromises);
+                } catch (e) {
+                    console.error(e);
+                }
+
                 state.excelData = [];
                 state.extractedOrderIds.clear();
                 state.activeView = 'big-bulk';
@@ -359,7 +599,9 @@
                 ui.excelInput.value = '';
                 ui.pdfInput.value = '';
                 ui.searchInput.value = '';
-                ui.sortSelect.value = 'alpha';
+                ui.sortFilter.value = 'alpha';
+                ui.ordersSearchInput.value = '';
+                ui.ordersStatusFilter.value = 'all';
                 
                 ui.excelStatus.classList.add('hidden');
                 ui.pdfStatus.classList.add('hidden');
@@ -374,13 +616,12 @@
                 
                 this.updateStats(0, 0, 0);
                 this.switchView('big-bulk', true);
+                if (state.currentMainView === 'orders') this.renderOrdersView();
                 
                 ui.tableBody.innerHTML = `
                     <tr>
                         <td colspan="3" class="px-6 py-16 text-center text-slate-400">
-                            <svg class="mx-auto h-14 w-14 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
-                            <p class="text-lg font-semibold text-slate-600">تم تفريغ البيانات بنجاح</p>
-                            <p class="text-sm mt-1">ارفع شيت الإكسيل الجديد للبدء.</p>
+                            <p class="text-lg font-semibold text-slate-600">تم تفريغ البيانات السحابية بنجاح</p>
                         </td>
                     </tr>`;
             },
@@ -392,21 +633,17 @@
                         e.stopPropagation();
                     }, false);
                 });
-
                 ['dragenter', 'dragover'].forEach(eventName => {
                     zone.addEventListener(eventName, () => zone.classList.add('active'), false);
                 });
-
                 ['dragleave', 'drop'].forEach(eventName => {
                     zone.addEventListener(eventName, () => zone.classList.remove('active'), false);
                 });
-
                 zone.addEventListener('drop', (e) => {
                     let dt = e.dataTransfer;
                     let files = dt.files;
                     if (files.length > 0) callback(files);
                 });
-
                 input.addEventListener('change', (e) => {
                     if (e.target.files.length > 0) callback(e.target.files);
                 });
@@ -418,14 +655,10 @@
                 const result = [];
 
                 const processProductName = (rawName, qty) => {
-                    // التحقق مما إذا كان الاسم يبدأ بأقواس مربعة (باقة/Duo)
                     const isBundle = /^\s*\[.*?\]/.test(rawName);
-                    
-                    // إزالة ما بداخل القوس في البداية فقط
                     let cleanName = rawName.replace(/^\s*\[.*?\]\s*/, '');
                     
                     if (isBundle) {
-                        // إذا كان باقة (يبدأ بأقواس)، قم بتقسيمه بناءً على علامة +
                         let parts = cleanName.split(/\s+\+\s+/);
                         parts.forEach(part => {
                             let finalName = part.replace(/^[-_\s]+/, '').trim();
@@ -434,7 +667,6 @@
                             }
                         });
                     } else {
-                        // إذا لم يكن باقة، اعتبره منتجاً واحداً (مثل Mary&May - Tranexamic Acid + Glutathione)
                         let finalName = cleanName.replace(/^[-_\s]+/, '').trim();
                         if (finalName) {
                             result.push({ name: finalName, qty: qty });
@@ -446,7 +678,6 @@
                     line = line.trim();
                     if (!line) return;
 
-                    // تعبير نمطي (Regex) يلتقط اسم المنتج حتى علامة x ثم الرقم
                     const regex = /(.*?)\s*x\s*(\d+)/gi;
                     let match;
                     let lastIndex = 0;
@@ -456,13 +687,10 @@
                         foundAny = true;
                         let rawName = match[1];
                         let qty = parseInt(match[2], 10);
-                        
                         processProductName(rawName, qty);
-                        
                         lastIndex = regex.lastIndex;
                     }
 
-                    // إذا كان هناك نص متبقي في نهاية السطر بدون "x رقم"
                     if (foundAny) {
                         if (lastIndex < line.length) {
                             let remaining = line.substring(lastIndex).trim();
@@ -471,7 +699,6 @@
                             }
                         }
                     } else {
-                        // إذا لم يحتوي السطر على أي نمط "x 1"، نعتبر السطر منتج واحد أو باقة (سيتم فحص الـ + داخلها أيضاً)
                         processProductName(line, 1);
                     }
                 });
@@ -486,7 +713,7 @@
                 }
 
                 const reader = new FileReader();
-                reader.onload = (e) => {
+                reader.onload = async (e) => {
                     try {
                         const data = new Uint8Array(e.target.result);
                         const workbook = XLSX.read(data, { type: 'array' });
@@ -496,21 +723,15 @@
                         if (rows.length === 0) throw new Error("شيت الإكسيل فارغ.");
 
                         const keys = Object.keys(rows[0]);
-                        
-                        // تطبيق قواعد القراءة الصارمة (Strict Rules) حصراً على الأعمدة المحددة
                         const orderIdKey = keys.find(k => k.trim().toLowerCase() === 'business reference number') || 
                                            keys.find(k => String(k).trim().toLowerCase().includes('business reference'));
                         
                         const descKey = keys.find(k => k.trim().toLowerCase() === 'description');
 
-                        if (!orderIdKey) {
-                            throw new Error("خطأ قراءة صارم: لم يتم العثور على عمود (Business Reference Number). يرجى التحقق من الشيت.");
-                        }
-                        if (!descKey) {
-                            throw new Error("خطأ قراءة صارم: لم يتم العثور على عمود الوصف (Description). يرجى التحقق من الشيت.");
-                        }
+                        if (!orderIdKey) throw new Error("لم يتم العثور على عمود (Business Reference Number).");
+                        if (!descKey) throw new Error("لم يتم العثور على عمود الوصف (Description).");
 
-                        state.excelData = rows.map(row => {
+                        const parsedRows = rows.map(row => {
                             const rawId = String(row[orderIdKey]).trim();
                             const rawDesc = row[descKey];
                             return {
@@ -519,16 +740,22 @@
                             };
                         }).filter(row => row.orderId !== "");
 
-                        // تحديث الواجهة
                         ui.excelStatus.classList.remove('hidden', 'bg-rose-50', 'text-rose-700', 'border-rose-200');
-                        ui.excelStatus.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
-                        ui.excelStatusText.innerText = `تم قراءة ${state.excelData.length} أوردر بنجاح.`;
+                        ui.excelStatus.classList.add('bg-amber-50', 'text-amber-700', 'border-amber-200');
+                        ui.excelStatusText.innerText = `جاري رفع وحفظ ${parsedRows.length} أوردر بالسحابة...`;
+
+                        await this.saveToCloud(parsedRows);
+
+                        state.excelData = parsedRows;
+                        ui.excelStatus.classList.replace('bg-amber-50', 'bg-emerald-50');
+                        ui.excelStatus.classList.replace('text-amber-700', 'text-emerald-700');
+                        ui.excelStatus.classList.replace('border-amber-200', 'border-emerald-200');
+                        ui.excelStatusText.innerText = `تم حفظ ومزامنة ${state.excelData.length} أوردر بنجاح.`;
                         
                         ui.pdfOverlay.classList.add('hidden');
                         ui.btnBbExcel.disabled = false;
                         ui.btnBbPdf.disabled = false;
                         
-                        // إعادة تعيين وضع PDF لو رُفع إكسيل جديد
                         state.extractedOrderIds.clear();
                         state.pdfLoaded = false;
                         ui.pdfStatus.classList.add('hidden');
@@ -538,6 +765,7 @@
                         ui.btnResetPdf.classList.add('hidden');
 
                         this.switchView('big-bulk');
+                        if (state.currentMainView === 'orders') this.renderOrdersView();
 
                     } catch (err) {
                         this.showError(ui.excelStatus, ui.excelStatusText, `خطأ في قراءة الملف: ${err.message}`);
@@ -551,61 +779,38 @@
                 
                 const pdfFiles = Array.from(files).filter(f => f.type === 'application/pdf');
                 if (pdfFiles.length === 0) {
-                    alert("يرجى التأكد من رفع ملفات بصيغة PDF فقط.");
+                    ui.pdfStatus.classList.remove('hidden');
+                    this.showError(ui.pdfStatus, ui.pdfStatusText, "يرجى التأكد من رفع ملفات بصيغة PDF فقط.");
                     return;
                 }
 
-                // 1. إظهار واجهة التحميل فوراً قبل أي معالجة ثقيلة
                 ui.pdfStatus.classList.remove('hidden', 'bg-rose-50', 'text-rose-700', 'border-rose-200');
                 ui.pdfStatus.classList.add('bg-amber-50', 'text-amber-700', 'border-amber-200');
                 ui.pdfCheck.classList.add('hidden');
                 ui.pdfSpinner.classList.remove('hidden');
-                ui.pdfStatusText.innerHTML = `جاري التجهيز لمعالجة <b>${pdfFiles.length}</b> ملف PDF...`;
+                ui.pdfStatusText.innerHTML = `جاري مطابقة أرقام الأوردرات من <b>أسماء الملفات</b> لـ ${pdfFiles.length} ملف...`;
 
-                // إعطاء المتصفح 100 ملي ثانية ليرسم السبينر على الشاشة قبل أن يتجمد في المعالجة
-                await new Promise(resolve => setTimeout(resolve, 100));
+                // Small delay to allow UI to render the loading state
+                await new Promise(resolve => setTimeout(resolve, 200));
 
                 try {
-                    let fullTextDump = "";
-
-                    // 2. معالجة الملفات واحداً تلو الآخر لتجنب انهيار المتصفح (Memory Leak)
-                    for (let i = 0; i < pdfFiles.length; i++) {
-                        // تحديث النص ليوضح التقدم
-                        ui.pdfStatusText.innerHTML = `جاري استخراج النصوص... (ملف ${i + 1} من ${pdfFiles.length})`;
-                        
-                        // إعطاء المتصفح فرصة لتحديث النص
-                        if (i % 5 === 0) await new Promise(resolve => setTimeout(resolve, 10)); 
-
-                        const file = pdfFiles[i];
-                        const arrayBuffer = await file.arrayBuffer();
-                        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                        
-                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                            const page = await pdf.getPage(pageNum);
-                            const textContent = await page.getTextContent();
-                            const pageText = textContent.items.map(item => item.str).join(" ");
-                            fullTextDump += " " + pageText;
-                        }
-                    }
-
-                    // 3. المطابقة الصارمة مع بيانات الإكسيل
-                    ui.pdfStatusText.innerHTML = `جاري مطابقة الأوردرات مع شيت الإكسيل...`;
-                    await new Promise(resolve => setTimeout(resolve, 50));
-
                     state.extractedOrderIds.clear();
-                    // إزالة كل المسافات من النص المستخرج من الـ PDFs لضمان دقة البحث
-                    const noSpaceDump = fullTextDump.replace(/\s+/g, '');
                     
+                    // Create an array of all uploaded file names in lowercase for case-insensitive matching
+                    const fileNames = pdfFiles.map(f => f.name.toLowerCase());
+                    
+                    // Check every row from Excel to see if its ID exists in ANY of the uploaded file names
                     state.excelData.forEach(row => {
-                        // إزالة المسافات من رقم الأوردر في الإكسيل
-                        const noSpaceId = String(row.orderId).replace(/\s+/g, '');
-                        // التأكد من أن الرقم لا يقل عن 4 أرقام لتجنب المطابقات الخاطئة
-                        if (noSpaceId.length > 3 && noSpaceDump.includes(noSpaceId)) {
-                            state.extractedOrderIds.add(row.orderId);
+                        const orderId = String(row.orderId).trim().toLowerCase();
+                        if (orderId.length > 3) {
+                            // Returns true if the orderId is found anywhere inside any file name
+                            const foundInFileName = fileNames.some(name => name.includes(orderId));
+                            if (foundInFileName) {
+                                state.extractedOrderIds.add(row.orderId);
+                            }
                         }
                     });
 
-                    // 4. إنهاء العملية بنجاح وتحديث الواجهة
                     state.pdfLoaded = true;
                     ui.pdfSpinner.classList.add('hidden');
                     ui.pdfCheck.classList.remove('hidden');
@@ -614,7 +819,7 @@
                         ui.pdfStatus.classList.replace('bg-amber-50', 'bg-rose-50');
                         ui.pdfStatus.classList.replace('text-amber-700', 'text-rose-700');
                         ui.pdfStatus.classList.replace('border-amber-200', 'border-rose-200');
-                        ui.pdfStatusText.innerHTML = `لم يتم العثور على أي أوردر مطابق داخل الـ ${pdfFiles.length} ملف المرفوعة!`;
+                        ui.pdfStatusText.innerHTML = `لم يتم العثور على أي رقم أوردر مطابق في أسماء الـ ${pdfFiles.length} ملف المرفوعة!`;
                     } else {
                         ui.pdfStatus.classList.replace('bg-amber-50', 'bg-emerald-50');
                         ui.pdfStatus.classList.replace('text-amber-700', 'text-emerald-700');
@@ -627,47 +832,42 @@
                     ui.tabPb.disabled = false;
                     ui.btnResetPdf.classList.remove('hidden');
 
-                    // 5. الانتقال للجدول المفلتر
                     this.switchView('per-bulk');
+                    
+                    // Update Orders page seamlessly
+                    if (state.currentMainView === 'orders') {
+                        this.renderOrdersView();
+                    }
 
                 } catch (err) {
                     ui.pdfSpinner.classList.add('hidden');
                     ui.pdfCheck.classList.remove('hidden');
-                    this.showError(ui.pdfStatus, ui.pdfStatusText, `حدث خطأ أثناء معالجة ملفات PDF: ${err.message}`);
+                    this.showError(ui.pdfStatus, ui.pdfStatusText, `حدث خطأ أثناء معالجة أسماء الملفات: ${err.message}`);
                 }
             },
 
             switchView(mode, skipRender = false) {
                 state.activeView = mode;
-                
-                // تحديث شكل الأزرار (Tabs)
                 if (mode === 'big-bulk') {
                     ui.tabBb.classList.replace('text-slate-500', 'text-blue-700');
                     ui.tabBb.classList.replace('hover:text-slate-700', 'bg-blue-50');
                     ui.tabBb.classList.add('bg-blue-50');
-                    
                     ui.tabPb.classList.replace('text-amber-700', 'text-slate-500');
                     ui.tabPb.classList.remove('bg-amber-50');
                     ui.tabPb.classList.add('hover:text-slate-700');
-                    
                     ui.tableViewMode.innerText = "الوضع الحالي: التحضير الشامل لجميع الأوردرات (Big Bulk)";
                     ui.tableViewMode.className = "text-sm text-blue-600 font-bold mt-1";
                 } else {
                     ui.tabPb.classList.replace('text-slate-500', 'text-amber-700');
                     ui.tabPb.classList.replace('hover:text-slate-700', 'bg-amber-50');
                     ui.tabPb.classList.add('bg-amber-50');
-                    
                     ui.tabBb.classList.replace('text-blue-700', 'text-slate-500');
                     ui.tabBb.classList.remove('bg-blue-50');
                     ui.tabBb.classList.add('hover:text-slate-700');
-                    
                     ui.tableViewMode.innerText = "الوضع الحالي: تحضير الأوردرات المفلترة فقط (Per-Bulk)";
                     ui.tableViewMode.className = "text-sm text-amber-600 font-bold mt-1";
                 }
-
-                if (!skipRender) {
-                    this.renderTable(mode);
-                }
+                if (!skipRender) this.renderTable(mode);
             },
 
             getAggregatedData(mode) {
@@ -688,13 +888,11 @@
                     });
                 });
 
-                // تحويل الماب إلى مصفوفة
                 let finalAggregatedList = Object.keys(aggregationMap).map(k => ({
                     name: k,
                     qty: aggregationMap[k]
                 }));
 
-                // فلترة النتائج بناءً على البحث
                 const searchTerm = ui.searchInput.value.trim().toLowerCase();
                 if (searchTerm) {
                     finalAggregatedList = finalAggregatedList.filter(item => 
@@ -702,7 +900,6 @@
                     );
                 }
 
-                // الترتيب الذكي بناءً على اختيار المستخدم
                 if (state.sortMode === 'alpha') {
                     finalAggregatedList.sort((a, b) => a.name.localeCompare(b.name));
                 } else if (state.sortMode === 'qty-desc') {
@@ -711,7 +908,6 @@
                     finalAggregatedList.sort((a, b) => a.qty - b.qty);
                 }
 
-                // إعادة حساب إجمالي القطع بناءً على القائمة المفلترة بالبحث
                 let totalItemsCount = finalAggregatedList.reduce((sum, item) => sum + item.qty, 0);
 
                 return { finalAggregatedList, activeOrdersCount, totalItemsCount };
@@ -719,8 +915,8 @@
 
             renderTable(mode) {
                 const { finalAggregatedList, activeOrdersCount, totalItemsCount } = this.getAggregatedData(mode);
-                
                 this.updateStats(activeOrdersCount, finalAggregatedList.length, totalItemsCount);
+                
                 ui.tableBody.innerHTML = '';
                 
                 if (finalAggregatedList.length === 0) {
@@ -756,26 +952,16 @@
                 const { finalAggregatedList, activeOrdersCount, totalItemsCount } = this.getAggregatedData(mode);
                 
                 if (finalAggregatedList.length === 0) {
-                    alert("لا توجد بيانات للتصدير.");
+                    this.showError(ui.excelStatus, ui.excelStatusText, "لا توجد بيانات للتصدير.");
                     return;
                 }
 
                 const dateStr = this.getFormattedDate();
                 const modeName = mode === 'big-bulk' ? 'BigBulk' : 'PerBulk';
                 
-                // طلب اسم الملف من المستخدم
-                const defaultFileName = `PickList_${modeName}_${dateStr}`;
-                let customFileName = prompt("يرجى إدخال اسم الملف الذي ترغب في حفظه:", defaultFileName);
-                
-                // إذا ضغط المستخدم على Cancel (إلغاء)
-                if (customFileName === null) {
-                    return;
-                }
-                
-                // إذا ترك الاسم فارغاً، نستخدم الاسم الافتراضي
-                customFileName = customFileName.trim() === "" ? defaultFileName : customFileName.trim();
+                // Changed from prompt() to direct naming to prevent UI blocking
+                const customFileName = `PickList_${modeName}_${dateStr}`;
 
-                
                 if (type === 'excel') {
                     const exportData = finalAggregatedList.map((item, index) => ({
                         "#": index + 1,
@@ -788,21 +974,19 @@
 
                     const workbook = XLSX.utils.book_new();
                     XLSX.utils.book_append_sheet(workbook, worksheet, modeName);
-                    
                     XLSX.writeFile(workbook, `${customFileName}.xlsx`);
                 
                 } else if (type === 'pdf') {
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
                     
-                    // تصغير العنوان والمساحات العلوية لتوفير مساحة للجدول
                     doc.setFontSize(16);
                     doc.setTextColor(30, 41, 59);
                     doc.text("Warehouse Pick List", 14, 15);
                     
                     doc.setFontSize(9);
                     doc.setTextColor(100, 116, 139);
-                    const docModeStr = mode === 'big-bulk' ? 'Mode: All Data (Big Bulk)' : 'Mode: PDF Filtered (Per-Bulk)';
+                    const docModeStr = mode === 'big-bulk' ? 'Mode: All Data (Big Bulk)' : 'Mode: Filtered (Per-Bulk)';
                     doc.text(`${docModeStr} | Orders: ${activeOrdersCount} | Total Items: ${totalItemsCount}`, 14, 21);
                     doc.text(`Generated: ${dateStr}`, 14, 26);
 
@@ -816,15 +1000,15 @@
                     doc.autoTable({
                         head: [tableColumn],
                         body: tableRows,
-                        startY: 30, // رفع الجدول للأعلى قليلاً
+                        startY: 30,
                         theme: 'grid',
                         styles: {
                             font: 'helvetica',
                             lineColor: [30, 41, 59],
-                            lineWidth: 0.1, // تصغير سُمك الخطوط
+                            lineWidth: 0.1,
                             textColor: [15, 23, 42],
-                            fontSize: 9, // تصغير حجم الخط العام لاستيعاب سطور أكثر
-                            cellPadding: 2.5, // تقليل الهوامش داخل الخلايا بشكل كبير
+                            fontSize: 9,
+                            cellPadding: 2.5,
                         },
                         headStyles: {
                             fillColor: [241, 245, 249],
@@ -836,7 +1020,7 @@
                         columnStyles: {
                             0: { halign: 'center', cellWidth: 12 },
                             1: { halign: 'left' }, 
-                            2: { halign: 'center', fontStyle: 'bold', cellWidth: 35, textColor: [0, 0, 0], fontSize: 11 } // تصغير الخط هنا أيضاً
+                            2: { halign: 'center', fontStyle: 'bold', cellWidth: 35, textColor: [0, 0, 0], fontSize: 11 }
                         },
                         alternateRowStyles: {
                             fillColor: [250, 250, 250] 
@@ -854,9 +1038,8 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            app.init();
+            window.app.init();
         });
-
     </script>
 </body>
 </html>
